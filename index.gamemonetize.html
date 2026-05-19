@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ThermaCore: Expansion & Contraction Maze — A physics-based HTML5 grid maze game where you control a temperature-sensitive core." />
+    <title>ThermaCore: Expansion & Contraction Maze</title>
+    <script type="text/javascript">
+      window.SDK_OPTIONS = {
+        gameId: "683k9tckje9248o68p94w009w81m6yp1",
+        onEvent: function(event) {
+          switch (event.name) {
+            case "SDK_GAME_PAUSE":
+              if (window.sdkCallbacks && typeof window.sdkCallbacks.onAdStarted === 'function') {
+                window.sdkCallbacks.onAdStarted();
+              }
+              break;
+            case "SDK_GAME_START":
+              if (window.sdkCallbacks && typeof window.sdkCallbacks.onAdFinished === 'function') {
+                window.sdkCallbacks.onAdFinished();
+              }
+              break;
+            case "SDK_ERROR":
+              if (window.sdkCallbacks && typeof window.sdkCallbacks.onAdFinished === 'function') {
+                window.sdkCallbacks.onAdFinished();
+              }
+              break;
+          }
+        }
+      };
+      (function(d, s, id) {
+        var js, fjs = d.getElementsByTagName(s)[0];
+        if (d.getElementById(id)) return;
+        js = d.createElement(s); js.id = id;
+        js.src = 'https://api.gamemonetize.com/sdk.js';
+        fjs.parentNode.insertBefore(js, fjs);
+      }(document, 'script', 'gamemonetize-sdk'));
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
