@@ -423,15 +423,35 @@ function GameCanvas({ level, onLevelClear, onQuit }) {
       }
 
       // Background draw
-      ctx.fillStyle = '#030205';
+      ctx.fillStyle = '#06040a';
       ctx.fillRect(0, 0, W, H);
 
-      // Grid background dots
+      // Parallax moving background grid dots
       ctx.fillStyle = 'rgba(255, 94, 0, 0.03)';
-      for (let x = 30; x < W; x += 40) {
-        for (let y = 30; y < H; y += 40) {
+      const bgShiftX = (Date.now() * 0.015) % 40;
+      const bgShiftY = (Date.now() * 0.01) % 40;
+      for (let x = bgShiftX; x < W; x += 40) {
+        for (let y = bgShiftY; y < H; y += 40) {
           ctx.fillRect(x, y, 1.5, 1.5);
         }
+      }
+
+      // Tech Grid Lines
+      ctx.strokeStyle = 'rgba(96, 239, 255, 0.015)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = 0; x < W; x += 100) {
+        ctx.moveTo(x, 0); ctx.lineTo(x, H);
+      }
+      for (let y = 0; y < H; y += 100) {
+        ctx.moveTo(0, y); ctx.lineTo(W, y);
+      }
+      ctx.stroke();
+
+      // Scanline effect
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.01)';
+      for (let y = 0; y < H; y += 4) {
+        ctx.fillRect(0, y, W, 1);
       }
 
       // Draw heating zones (Heaters)
@@ -441,16 +461,33 @@ function GameCanvas({ level, onLevelClear, onQuit }) {
         const hW = h.w * W;
         const hH = h.h * H;
         
+        // Heat glow
         const grad = ctx.createRadialGradient(hX + hW/2, hY + hH/2, 5, hX + hW/2, hY + hH/2, hW * 0.7);
-        grad.addColorStop(0, 'rgba(255, 94, 0, 0.22)');
+        grad.addColorStop(0, 'rgba(255, 94, 0, 0.28)');
         grad.addColorStop(1, 'rgba(255, 94, 0, 0.0)');
         ctx.fillStyle = grad;
         ctx.fillRect(hX, hY, hW, hH);
 
-        // Core visual outline
-        ctx.strokeStyle = 'rgba(255, 94, 0, 0.3)';
+        // Animated warning stripes inside heaters
+        ctx.strokeStyle = 'rgba(255, 94, 0, 0.15)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const spacing = 15;
+        const offset = (Date.now() * 0.015) % spacing;
+        for (let sx = hX + offset - spacing; sx < hX + hW + spacing; sx += spacing) {
+          ctx.moveTo(sx, hY); ctx.lineTo(sx - 10, hY + hH);
+        }
+        ctx.stroke();
+
+        // Border
+        ctx.strokeStyle = '#ff5e00';
         ctx.lineWidth = 1.5;
         ctx.strokeRect(hX, hY, hW, hH);
+
+        // Tech details on top/bottom
+        ctx.fillStyle = 'rgba(255, 94, 0, 0.4)';
+        ctx.fillRect(hX, hY, hW, 4);
+        ctx.fillRect(hX, hY + hH - 4, hW, 4);
       });
 
       // Draw cooling zones (Coolers)
@@ -460,118 +497,301 @@ function GameCanvas({ level, onLevelClear, onQuit }) {
         const cW = c.w * W;
         const cH = c.h * H;
 
+        // Ice glow
         const grad = ctx.createRadialGradient(cX + cW/2, cY + cH/2, 5, cX + cW/2, cY + cH/2, cW * 0.7);
-        grad.addColorStop(0, 'rgba(96, 239, 255, 0.22)');
+        grad.addColorStop(0, 'rgba(96, 239, 255, 0.28)');
         grad.addColorStop(1, 'rgba(96, 239, 255, 0.0)');
         ctx.fillStyle = grad;
         ctx.fillRect(cX, cY, cW, cH);
 
-        // Core visual outline
-        ctx.strokeStyle = 'rgba(96, 239, 255, 0.3)';
+        // Cool vertical wave lines
+        ctx.strokeStyle = 'rgba(96, 239, 255, 0.15)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        const spacing = 15;
+        const offset = (Date.now() * -0.01) % spacing;
+        for (let cx = cX + offset - spacing; cx < cX + cW + spacing; cx += spacing) {
+          ctx.moveTo(cx, cY);
+          // Wave curve
+          for (let cy = cY; cy <= cY + cH; cy += 10) {
+            ctx.lineTo(cx + Math.sin(cy * 0.1 + Date.now() * 0.005) * 3, cy);
+          }
+        }
+        ctx.stroke();
+
+        // Border
+        ctx.strokeStyle = '#60efff';
         ctx.lineWidth = 1.5;
         ctx.strokeRect(cX, cY, cW, cH);
+
+        // Frost corners
+        ctx.fillStyle = 'rgba(96, 239, 255, 0.4)';
+        ctx.fillRect(cX, cY, 4, cH);
+        ctx.fillRect(cX + cW - 4, cY, 4, cH);
       });
 
-      // Draw normal walls
-      ctx.fillStyle = '#1c1512';
-      ctx.strokeStyle = 'rgba(255, 94, 0, 0.2)';
-      ctx.lineWidth = 1.5;
+      // Draw normal walls (Metallic Beveled Tiles)
       state.walls.forEach(w => {
-        ctx.fillRect(w.x * W, w.y * H, w.w * W, w.h * H);
-        ctx.strokeRect(w.x * W, w.y * H, w.w * W, w.h * H);
+        const x = w.x * W;
+        const y = w.y * H;
+        const width = w.w * W;
+        const height = w.h * H;
+
+        // Metallic panel background
+        const wallGrad = ctx.createLinearGradient(x, y, x + width, y + height);
+        wallGrad.addColorStop(0, '#1c1926');
+        wallGrad.addColorStop(0.5, '#12101b');
+        wallGrad.addColorStop(1, '#0b0a12');
+        ctx.fillStyle = wallGrad;
+        ctx.fillRect(x, y, width, height);
+
+        // Outer neon highlight borders
+        ctx.strokeStyle = 'rgba(96, 239, 255, 0.25)';
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(x, y, width, height);
+
+        // Inner beveled shade
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.lineWidth = 2.0;
+        ctx.strokeRect(x + 2, y + 2, width - 4, height - 4);
+
+        // Draw rivets on corners for a metallic mechanical look
+        if (width > 22 && height > 22) {
+          ctx.fillStyle = '#4e4c5e';
+          const rivets = [
+            [6, 6],
+            [width - 6, 6],
+            [6, height - 6],
+            [width - 6, height - 6]
+          ];
+          rivets.forEach(([rx, ry]) => {
+            ctx.beginPath();
+            ctx.arc(x + rx, y + ry, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Rivet specular dot
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.fillRect(x + rx - 0.6, y + ry - 0.6, 1.0, 1.0);
+            ctx.fillStyle = '#4e4c5e'; // Restore
+          });
+        }
       });
 
-      // Draw Switches / Plates
+      // Draw Switches / Plates (3D Cyber Pads)
       state.switches.forEach(sw => {
         const sX = sw.x * W;
         const sY = sw.y * H;
+        const radius = sw.radius;
 
+        // 3D Outer steel casing
+        ctx.fillStyle = '#222030';
+        ctx.strokeStyle = sw.pressed ? '#ff5e00' : '#454256';
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(sX, sY, sw.radius, 0, Math.PI * 2);
-        ctx.fillStyle = sw.pressed ? 'rgba(255, 94, 0, 0.3)' : 'rgba(255, 255, 255, 0.05)';
+        ctx.arc(sX, sY, radius, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = sw.pressed ? '#ff5e00' : sw.heavy ? 'rgba(255, 94, 0, 0.5)' : '#888';
-        ctx.lineWidth = sw.heavy ? 2.5 : 1.5;
         ctx.stroke();
 
-        // Inner heavy sign
-        if (sw.heavy) {
-          ctx.fillStyle = sw.pressed ? '#ff5e00' : 'rgba(255, 94, 0, 0.4)';
-          ctx.font = '8px Orbitron';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText("HEAVY", sX, sY);
+        // Inner pressure pad plate
+        ctx.fillStyle = sw.pressed ? 'rgba(255, 94, 0, 0.4)' : '#0e0c16';
+        ctx.beginPath();
+        ctx.arc(sX, sY, radius - 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Glowing center core led
+        if (sw.pressed) {
+          ctx.shadowColor = '#ff5e00';
+          ctx.shadowBlur = 10;
+          ctx.fillStyle = '#ff5e00';
+        } else {
+          ctx.fillStyle = sw.heavy ? 'rgba(255, 94, 0, 0.5)' : '#60efff';
         }
+        ctx.beginPath();
+        ctx.arc(sX, sY, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0; // Reset
+
+        // State labeling text
+        ctx.fillStyle = sw.pressed ? '#ff5e00' : 'rgba(255, 255, 255, 0.7)';
+        ctx.font = 'bold 9px Orbitron';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(sw.heavy ? "HEAVY" : "READY", sX, sY - radius * 0.5);
       });
 
-      // Draw gates status
+      // Draw gates status (Glowing Neon Forcefield)
       state.gates.forEach(gate => {
         if (!gate.open) {
-          ctx.fillStyle = 'rgba(255, 94, 0, 0.15)';
+          const gX = gate.x * W;
+          const gY = gate.y * H;
+          const gW = gate.w * W;
+          const gH = gate.h * H;
+
+          // Glowing background pulse
+          const pulse = 0.5 + 0.3 * Math.sin(Date.now() * 0.01);
+          ctx.fillStyle = `rgba(255, 94, 0, ${0.1 + pulse * 0.08})`;
+          ctx.fillRect(gX, gY, gW, gH);
+
+          // Forcefield lines
+          ctx.strokeStyle = `rgba(255, 94, 0, ${0.15 * pulse})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          for (let gy = gY; gy < gY + gH; gy += 6) {
+            ctx.moveTo(gX, gy); ctx.lineTo(gX + gW, gy);
+          }
+          ctx.stroke();
+
+          // Glowing border
+          ctx.shadowColor = '#ff5e00';
+          ctx.shadowBlur = 8;
           ctx.strokeStyle = '#ff5e00';
-          ctx.lineWidth = 2.0;
-          ctx.fillRect(gate.x * W, gate.y * H, gate.w * W, gate.h * H);
-          ctx.strokeRect(gate.x * W, gate.y * H, gate.w * W, gate.h * H);
+          ctx.lineWidth = 2.5;
+          ctx.strokeRect(gX, gY, gW, gH);
+          ctx.shadowBlur = 0;
         }
       });
 
-      // Draw spikes hazards
+      // Draw spikes hazards (Tesla Coils with active animated electric lightning arcs!)
       state.spikes.forEach(sp => {
         const sX = sp.x * W;
         const sY = sp.y * H;
-        
-        ctx.beginPath();
-        ctx.arc(sX, sY, sp.radius, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 0, 85, 0.2)';
-        ctx.fill();
+        const radius = sp.radius;
+
+        // Draw metallic generator base
+        ctx.fillStyle = '#1c1926';
         ctx.strokeStyle = '#ff0055';
-        ctx.lineWidth = 2.0;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(sX, sY, radius * 0.75, 0, Math.PI * 2);
+        ctx.fill();
         ctx.stroke();
 
-        // Cross spike center
-        ctx.strokeStyle = '#ff0055';
-        ctx.lineWidth = 1.5;
+        // Glowing center core sphere
+        const pulse = 1.0 + 0.15 * Math.sin(Date.now() * 0.025);
+        ctx.shadowColor = '#ff0055';
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = '#ff0055';
         ctx.beginPath();
-        ctx.moveTo(sX - sp.radius, sY); ctx.lineTo(sX + sp.radius, sY);
-        ctx.moveTo(sX, sY - sp.radius); ctx.lineTo(sX, sY + sp.radius);
-        ctx.stroke();
+        ctx.arc(sX, sY, radius * 0.38 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Procedural electric lightning arcs extending outwards!
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.2;
+        ctx.shadowColor = '#ff0055';
+        ctx.shadowBlur = 4;
+        
+        const arcCount = 3;
+        for (let i = 0; i < arcCount; i++) {
+          const startAngle = (Date.now() * 0.005 + (i * Math.PI * 2 / arcCount)) % (Math.PI * 2);
+          ctx.beginPath();
+          ctx.moveTo(sX, sY);
+          
+          let curX = sX;
+          let curY = sY;
+          const steps = 4;
+          for (let s = 1; s <= steps; s++) {
+            const ratio = s / steps;
+            const targetX = sX + Math.cos(startAngle) * radius * ratio;
+            const targetY = sY + Math.sin(startAngle) * radius * ratio;
+            
+            // Random lightning zig-zag offset
+            const offsetAmp = 4 * (1 - ratio);
+            curX = targetX + (Math.random() - 0.5) * offsetAmp;
+            curY = targetY + (Math.random() - 0.5) * offsetAmp;
+            ctx.lineTo(curX, curY);
+          }
+          ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
       });
 
-      // Draw destination reactor portal
+      // Draw destination reactor portal (Pulsing cyber core portal)
       const destX = state.destination.x * W;
       const destY = state.destination.y * H;
+      const destR = state.destination.radius;
+
+      ctx.save();
+      ctx.shadowColor = '#60efff';
+      ctx.shadowBlur = 15;
+      
+      // Portal base glow
+      ctx.fillStyle = 'rgba(96, 239, 255, 0.08)';
       ctx.beginPath();
-      ctx.arc(destX, destY, state.destination.radius + Math.sin(Date.now() * 0.005) * 3, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(96, 239, 255, 0.15)';
+      ctx.arc(destX, destY, destR + Math.sin(Date.now() * 0.006) * 3, 0, Math.PI * 2);
       ctx.fill();
+
+      // Outer rotating segmented scanner rings
       ctx.strokeStyle = '#60efff';
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      ctx.arc(destX, destY, destR + 6, Date.now() * 0.002, Date.now() * 0.002 + Math.PI * 1.3);
       ctx.stroke();
 
-      // Draw Player core node
-      const col = state.player.state === 'hot' ? '#ff5e00' : state.player.state === 'cold' ? '#60efff' : '#ff0055';
+      ctx.beginPath();
+      ctx.arc(destX, destY, destR + 6, Date.now() * -0.003 + Math.PI, Date.now() * -0.003 + Math.PI * 2.3);
+      ctx.stroke();
+
+      // Center sphere
+      ctx.fillStyle = '#60efff';
+      ctx.beginPath();
+      ctx.arc(destX, destY, destR * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // "PORTAL" text
+      ctx.fillStyle = '#06040a';
+      ctx.font = 'bold 8px Orbitron';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText("PORTAL", destX, destY);
+      ctx.restore();
+
+      // Draw Player core node (Plasma Orb with outer rings and energy shield)
+      ctx.save();
+      
+      // Glow
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = col;
       ctx.beginPath();
       ctx.arc(pX, pY, r, 0, Math.PI * 2);
-      ctx.fillStyle = col;
       ctx.fill();
-      ctx.strokeStyle = '#fff';
+      ctx.shadowBlur = 0;
+
+      // Energy shield rings rotating
+      ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(pX, pY, r + 4, Date.now() * 0.015, Date.now() * 0.015 + Math.PI * 0.7);
       ctx.stroke();
 
-      // Inner details based on state
+      ctx.beginPath();
+      ctx.arc(pX, pY, r + 4, Date.now() * -0.01 + Math.PI, Date.now() * -0.01 + Math.PI * 1.7);
+      ctx.stroke();
+
+      // Core center
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(pX, pY, r * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Status letter overlay
       if (state.player.state === 'hot') {
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.font = '10px Orbitron';
+        ctx.fillStyle = '#ff5e00';
+        ctx.font = 'bold 8px Orbitron';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText("H", pX, pY);
       } else if (state.player.state === 'cold') {
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.font = '7px Orbitron';
+        ctx.fillStyle = '#60efff';
+        ctx.font = 'bold 6px Orbitron';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText("C", pX, pY);
       }
+      ctx.restore();
 
       // Update particles
       for (let i = state.particles.length - 1; i >= 0; i--) {

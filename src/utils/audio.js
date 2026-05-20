@@ -3,13 +3,21 @@
 
 let audioCtx = null;
 let isMuted = false;
+let bgMusicInterval = null;
+let bgMusicStep = 0;
 
 function getAudioContext() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Start background music loop when context is created
+    setTimeout(() => {
+      startBackgroundMusic();
+    }, 100);
   }
   if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
+    audioCtx.resume().then(() => {
+      startBackgroundMusic();
+    });
   }
   return audioCtx;
 }
@@ -18,12 +26,107 @@ export function setMute(muteState) {
   isMuted = muteState;
   if (audioCtx && isMuted) {
     audioCtx.suspend();
+    stopBackgroundMusic();
   } else if (audioCtx && !isMuted) {
-    audioCtx.resume();
+    audioCtx.resume().then(() => {
+      startBackgroundMusic();
+    });
   }
 }
 
-// 1. Core wall bump sound
+// 1. Cyberpunk Ambient Music Synthesizer
+export function startBackgroundMusic() {
+  if (isMuted) return;
+  if (bgMusicInterval) return; // Already running
+
+  try {
+    const ctx = getAudioContext();
+    const notes = [110.00, 130.81, 146.83, 164.81, 220.00]; // A2, C3, D3, E3, A3 (A Minor Pentatonic mood)
+
+    const playStep = () => {
+      if (isMuted || ctx.state === 'suspended') return;
+      const now = ctx.currentTime;
+
+      // 1. Deep Space Drone (plays every 8 steps)
+      if (bgMusicStep % 8 === 0) {
+        const oscBass = ctx.createOscillator();
+        const oscSub = ctx.createOscillator();
+        const gainBass = ctx.createGain();
+        const lpFilter = ctx.createBiquadFilter();
+
+        oscBass.type = 'sawtooth';
+        oscBass.frequency.setValueAtTime(55.00, now); // A1 bass note
+        
+        oscSub.type = 'sine';
+        oscSub.frequency.setValueAtTime(27.50, now); // A0 Sub bass hum
+
+        lpFilter.type = 'lowpass';
+        lpFilter.frequency.setValueAtTime(140, now); // Low pass filter to make it a warm hum
+
+        gainBass.gain.setValueAtTime(0, now);
+        gainBass.gain.linearRampToValueAtTime(0.04, now + 0.5); // Slow fade-in
+        gainBass.gain.exponentialRampToValueAtTime(0.001, now + 2.9); // Fade-out
+
+        oscBass.connect(lpFilter);
+        oscSub.connect(lpFilter);
+        lpFilter.connect(gainBass);
+        gainBass.connect(ctx.destination);
+
+        oscBass.start(now);
+        oscSub.start(now);
+        oscBass.stop(now + 3.0);
+        oscSub.stop(now + 3.0);
+      }
+
+      // 2. Cybernetic Arpeggiator (plays on even steps)
+      if (bgMusicStep % 2 === 0) {
+        const oscArp = ctx.createOscillator();
+        const gainArp = ctx.createGain();
+        const delay = ctx.createDelay();
+        const delayGain = ctx.createGain();
+
+        oscArp.type = 'triangle';
+        // Pick a semi-random note in pentatonic scale
+        const noteIndex = (bgMusicStep * 3) % notes.length;
+        const multiplier = bgMusicStep % 4 === 0 ? 2 : 1; // Octave alternation
+        oscArp.frequency.setValueAtTime(notes[noteIndex] * multiplier, now);
+
+        gainArp.gain.setValueAtTime(0.015, now);
+        gainArp.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+        // Add soft echo/delay effect
+        delay.delayTime.value = 0.15;
+        delayGain.gain.value = 0.2; // Soft echoes
+
+        oscArp.connect(gainArp);
+        gainArp.connect(ctx.destination);
+
+        // Feedback loop for delay echo
+        gainArp.connect(delay);
+        delay.connect(delayGain);
+        delayGain.connect(ctx.destination);
+
+        oscArp.start(now);
+        oscArp.stop(now + 0.4);
+      }
+
+      bgMusicStep++;
+    };
+
+    bgMusicInterval = setInterval(playStep, 350); // Play steps on loop
+  } catch (e) {
+    console.warn("Background music start failed:", e);
+  }
+}
+
+export function stopBackgroundMusic() {
+  if (bgMusicInterval) {
+    clearInterval(bgMusicInterval);
+    bgMusicInterval = null;
+  }
+}
+
+// 2. Core wall bump sound
 export function playBump() {
   if (isMuted) return;
   try {
@@ -48,7 +151,7 @@ export function playBump() {
   }
 }
 
-// 2. Temperature State Transition (Hum/Sweep)
+// 3. Temperature State Transition (Hum/Sweep)
 export function playStateTransition(isHeating) {
   if (isMuted) return;
   try {
@@ -80,7 +183,7 @@ export function playStateTransition(isHeating) {
   }
 }
 
-// 3. Switch Click (Gate unlock)
+// 4. Switch Click (Gate unlock)
 export function playSwitch() {
   if (isMuted) return;
   try {
@@ -105,7 +208,7 @@ export function playSwitch() {
   }
 }
 
-// 4. Core Explode / Fire Crash
+// 5. Core Explode / Fire Crash
 export function playExplosion() {
   if (isMuted) return;
   try {
@@ -140,7 +243,7 @@ export function playExplosion() {
   }
 }
 
-// 5. Level Clear Chord
+// 6. Level Clear Chord
 export function playLevelUp() {
   if (isMuted) return;
   try {
