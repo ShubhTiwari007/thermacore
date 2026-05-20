@@ -750,6 +750,7 @@ function GameCanvas({ level, onLevelClear, onQuit }) {
 
       // Draw Player core node (Plasma Orb with outer rings and energy shield)
       ctx.save();
+      const col = state.player.state === 'hot' ? '#ff5e00' : state.player.state === 'cold' ? '#60efff' : '#ff0055';
       
       // Glow
       ctx.shadowColor = col;
